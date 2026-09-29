@@ -1,0 +1,35 @@
+import { chromium } from '@playwright/test';
+import fs from 'node:fs';
+const B='https://colabora.aksara.blog';
+const accs=JSON.parse(fs.readFileSync('accounts.local.json','utf8'));
+const email=`e2e-reg-${Date.now()}@example.com`; const name='E2E Registrasi '+new Date().toISOString().slice(11,19);
+const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1400,height:900}});
+const net=[];p.on('response',r=>{if(r.request().method()!=='GET'&&r.url().includes('api'))net.push(`${r.request().method()} ${r.status()} ${r.url().replace('https://api-colabora.anargya.fun','')}`)});
+await p.goto(B+'/registrasi');
+await p.getByLabel('Nama lengkap').fill(name);await p.getByLabel('Email').fill(email);
+await p.getByLabel('No. HP / telepon (opsional)').fill('081234567890');
+await p.getByLabel('Kata sandi',{exact:true}).fill('E2ePassword123');await p.getByLabel('Konfirmasi kata sandi').fill('E2ePassword123');
+await p.locator('input[type=file]').setInputFiles('tests/fixtures/files/e2e-evidence.pdf');
+await p.getByRole('button',{name:'Kirim registrasi'}).click();
+await p.waitForTimeout(4000);
+console.log('EMAIL',email);console.log('after submit url:',p.url(),'\n',(await p.locator('body').innerText()).slice(0,500));console.log(net);
+// login as the unverified user
+await p.goto(B+'/login');await p.getByLabel('Email',{exact:true}).fill(email);await p.getByLabel('Kata sandi',{exact:true}).fill('E2ePassword123');
+await p.getByRole('button',{name:'Masuk'}).click();await p.waitForTimeout(4000);
+console.log('unverified login url:',p.url(),'\n',(await p.locator('body').innerText()).slice(0,400));
+fs.writeFileSync('artifacts/last-reg-email.txt',email);
+// super user verifies
+const a=accs.find(x=>x.role==='super-user');
+const c=await b.newPage({viewport:{width:1400,height:900}});
+await c.goto(B+'/login');await c.getByLabel('Email',{exact:true}).fill(a.email);await c.getByLabel('Kata sandi',{exact:true}).fill(a.password);
+await c.getByRole('button',{name:'Masuk'}).click();await c.waitForURL(/dashboard/,{timeout:30000});await c.getByRole('button',{name:'Nanti'}).click();
+await c.getByRole('link',{name:'Manajemen akun'}).first().click();await c.waitForLoadState('networkidle').catch(()=>{});
+const row=c.getByRole('row').filter({hasText:email});
+console.log('ROW:',(await row.innerText()).replace(/\s+/g,' '));
+await c.screenshot({path:'artifacts/exploration-new/akun-pending.png',fullPage:true});
+await row.getByRole('button',{name:'Verifikasi'}).click();await c.waitForTimeout(1500);
+const dlg=c.getByRole('dialog').or(c.getByRole('alertdialog'));
+console.log('dialog count',await dlg.count(),(await dlg.count())?(await dlg.first().innerText()).replace(/\n+/g,' | '):'');
+console.log('fields:',await c.$$eval('[role=dialog] input,[role=dialog] select,[role=dialog] [role=combobox],[role=alertdialog] input',e=>e.map(x=>x.name||x.getAttribute('aria-label')||x.id)));
+await c.screenshot({path:'artifacts/exploration-new/akun-verify-dialog.png'});
+await b.close();

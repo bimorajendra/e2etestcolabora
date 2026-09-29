@@ -1,0 +1,28 @@
+import { chromium } from '@playwright/test';
+import fs from 'node:fs';
+const B='https://colabora.aksara.blog';
+const accs=JSON.parse(fs.readFileSync('accounts.local.json','utf8'));
+const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1400,height:900}});
+async function login(role){const a=accs.find(x=>x.role===role);
+  await p.goto(B+'/login');await p.getByLabel('Email',{exact:true}).fill(a.email);await p.getByLabel('Kata sandi',{exact:true}).fill(a.password);
+  await p.getByRole('button',{name:'Masuk'}).click();await p.waitForURL(/dashboard/,{timeout:30000});
+  await p.getByRole('button',{name:'Nanti'}).click({timeout:5000}).catch(()=>{});await p.waitForLoadState('networkidle').catch(()=>{});}
+const txt=async n=>(await p.locator('main').innerText()).slice(0,n);
+await login('super-user');
+console.log('== dashboard shortcuts:',await p.$$eval('main a',as=>as.slice(0,8).map(a=>a.textContent.trim().slice(0,50)+' -> '+a.getAttribute('href'))));
+await p.goto(B+'/dashboard?view=all');await p.waitForLoadState('networkidle').catch(()=>{});
+console.log('== view=all headings:',await p.$$eval('h1,h2,h3',h=>h.map(x=>x.tagName+' '+x.textContent.trim())));
+await p.getByRole('combobox').first().click();
+console.log('status options:',await p.getByRole('option').allInnerTexts());
+await p.keyboard.press('Escape');
+console.log('columns:',await p.getByRole('columnheader').allInnerTexts());
+await p.goto(B+'/admin/akun');await p.waitForLoadState('networkidle').catch(()=>{});
+console.log('== admin/akun:\n'+await txt(1500));
+console.log('tabs/buttons:',await p.$$eval('main button,[role=tab]',x=>x.map(y=>y.textContent.trim()).filter(Boolean)));
+await p.screenshot({path:'artifacts/exploration-new/admin-akun.png',fullPage:true});
+await p.goto(B+'/admin/akun/baru');await p.waitForLoadState('networkidle').catch(()=>{});
+console.log('== akun/baru:\n'+await txt(700));
+await login('pelayanan-taman');
+await p.goto(B+'/permohonan/baru');await p.waitForLoadState('networkidle').catch(()=>{});
+console.log('== permohonan/baru fields:',await p.$$eval('input,select,textarea,[role=combobox]',e=>e.map(x=>`${x.name||x.id} ph=${x.placeholder||''} label=${x.labels?.[0]?.textContent?.trim()||x.getAttribute('aria-label')||''}`)));
+await b.close();

@@ -1,0 +1,4 @@
+[
+  { "role": "admin", "label": "Admin", "email": "admin@example.com", "password": "" },
+  { "role": "user", "label": "User", "email": "user@example.com", "password": "" }
+]

@@ -1,0 +1,11 @@
+import { chromium } from '@playwright/test';
+import fs from 'node:fs';
+const accs=JSON.parse(fs.readFileSync('accounts.local.json','utf8'));
+const a=accs.find(x=>x.role==='admin');
+const b=await chromium.launch();const p=await b.newPage();
+const res=[];p.on('response',r=>{if(r.url().includes('/api/auth/login'))res.push(r.status())});
+await p.goto('https://colabora.aksara.blog/login');await p.getByLabel('Email',{exact:true}).fill(a.email);await p.getByLabel('Kata sandi',{exact:true}).fill(a.password);
+await p.getByRole('button',{name:'Masuk'}).click();await p.waitForTimeout(5000);
+console.log('login status',res,'url',p.url());
+console.log((await p.locator('body').innerText()).replace(/\n+/g,' | ').slice(0,300));
+await b.close();

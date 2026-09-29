@@ -1,0 +1,16 @@
+import { chromium } from '@playwright/test';
+import fs from 'node:fs';
+const B='https://colabora.aksara.blog';
+const accs=JSON.parse(fs.readFileSync('accounts.local.json','utf8'));
+const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1400,height:900}});
+const a=accs.find(x=>x.role==='super-user');
+await p.goto(B+'/login');await p.getByLabel('Email',{exact:true}).fill(a.email);await p.getByLabel('Kata sandi',{exact:true}).fill(a.password);
+await p.getByRole('button',{name:'Masuk'}).click();await p.waitForURL(/dashboard/,{timeout:30000});
+await p.getByRole('button',{name:'Nanti'}).click();await p.waitForLoadState('networkidle').catch(()=>{});
+console.log('stage labels:',await p.$$eval('[aria-label="Papan proses permohonan"] > div > section',s=>s.map(x=>x.getAttribute('aria-label'))));
+const links=p.getByRole('region',{name:'Papan proses permohonan'}).getByRole('link');
+console.log('links in board:',await links.count(), await links.first().evaluate(e=>e.outerHTML.slice(0,300)));
+console.log('cards not link?', await p.$$eval('[aria-label="Papan proses permohonan"] section article, [aria-label="Papan proses permohonan"] section li',x=>x.length));
+console.log('stage 2 header text:',await p.locator('[aria-label^="Tahap 2"] header').innerText());
+console.log('first card vis:',await links.first().isVisible());
+await b.close();

@@ -1,0 +1,14 @@
+import { chromium } from '@playwright/test';
+import fs from 'node:fs';
+const B='https://colabora.aksara.blog';
+const accs=JSON.parse(fs.readFileSync('accounts.local.json','utf8'));
+const email=fs.readFileSync('artifacts/last-reg-email.txt','utf8').trim();
+const b=await chromium.launch(); const c=await b.newPage({viewport:{width:1400,height:900}});
+const a=accs.find(x=>x.role==='super-user');
+await c.goto(B+'/login');await c.getByLabel('Email',{exact:true}).fill(a.email);await c.getByLabel('Kata sandi',{exact:true}).fill(a.password);
+await c.getByRole('button',{name:'Masuk'}).click();await c.waitForURL(/dashboard/,{timeout:30000});await c.getByRole('button',{name:'Nanti'}).click();
+await c.goto(B+'/admin/akun');await c.waitForLoadState('networkidle').catch(()=>{});
+await c.getByRole('row').filter({hasText:email}).getByRole('button',{name:'Verifikasi'}).click();
+const dlg=c.getByRole('alertdialog');await dlg.waitFor();
+console.log((await dlg.evaluate(e=>e.outerHTML)).replace(/<svg.*?<\/svg>/g,'').replace(/class="[^"]*"/g,'').slice(0,2500));
+await b.close();
